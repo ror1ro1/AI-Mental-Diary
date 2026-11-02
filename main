@@ -1,0 +1,90 @@
+python
+import os
+import streamlit as st
+from datetime import datetime, timedelta
+
+# Konfiguracja strony UI
+st.set_page_config(page_title="AI Mental Diary", page_icon="🧠", layout="centered")
+
+st.title("🧠 AI Mental Diary & Context Tracker")
+st.markdown("Track your daily performance, sleep quality, and emotional patterns.")
+
+# Funkcja wyliczająca daty graniczne obecnego tygodnia (np. 02.11 - 08.11)
+def get_week_range():
+    today = datetime.today()
+    start_of_week = today - timedelta(days=today.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    return f"{start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}"
+
+current_week = get_week_range()
+st.subheader(f"Current Tracking Period: Week {current_week}")
+
+# 1. Sekcja: Cele na dziś (Todays GOALS)
+st.header("🎯 Today's Goals")
+if 'goals' not in st.session_state:
+    st.session_state.goals = [{"text": "Finish Python project architecture", "done": False}, {"text": "Review technical documentation", "done": False}]
+
+new_goal = st.text_input("Add a new goal for today:", placeholder="Type a goal and press enter...")
+if st.button("Add Goal") and new_goal.strip():
+    st.session_state.goals.append({"text": new_goal.strip(), "done": False})
+
+for idx, goal in enumerate(st.session_state.goals):
+    st.session_state.goals[idx]["done"] = st.checkbox(goal["text"], value=goal["done"], key=f"goal_{idx}")
+
+# 2. Sekcja: Sen i poranek
+st.header("💤 Sleep & Morning Routine")
+sleep_hours = st.slider("Sleep hours last night:", min_value=0.0, max_value=16.0, value=7.0, step=0.5)
+sleep_quality = st.select_slider("Sleep quality & ease of falling asleep:", options=["Poor", "Fair", "Good", "Excellent"])
+morning_feeling = st.text_input("The feeling that stays with you from the moment you wake up:", placeholder="e.g., Energized, anxious, calm...")
+morning_energy = st.slider("Morning energy level (1-10):", 1, 10, 5)
+
+# 3. Sekcja: Wieczór i podsumowanie dnia
+st.header("🌙 Evening Reflection")
+evening_energy = st.slider("Evening energy level (1-10):", 1, 10, 5)
+biggest_win = st.text_area("The biggest win of the day:", placeholder="What went exceptionally well?")
+biggest_fail = st.text_area("The biggest fail of the day:", placeholder="What can be improved?")
+strongest_feeling = st.text_input("The strongest feeling of the day:", placeholder="Main emotion experienced...")
+short_story = st.text_area("Optional short story of the day:", placeholder="Any additional context or events...")
+
+# 4. Sekcja: Plany na jutro
+st.header("📋 Tomorrow's Plans")
+tomorrow_plans = st.text_area("Tomorrow's plans (will become today's goals tomorrow):", placeholder="List your key objectives for tomorrow...")
+
+# 5. Zapis danych do pliku tygodniowego (ETL File Export)
+if st.button("Save Daily Entry & Export"):
+    filename = f"diary_week_{current_week.replace('.', '_').replace(' ', '')}.txt"
+    
+    # Budowanie ustrukturyzowanego formatu tekstowego
+    entry_content = f"""
+==================================================
+DATE: {datetime.today().strftime('%Y-%m-%d %H:%M')}
+==================================================
+[GOALS STATUS]
+"""
+    for goal in st.session_state.goals:
+        status = "[X]" if goal["done"] else "[ ]"
+        entry_content += f"{status} {goal['text']}\n"
+        
+    entry_content += f"""
+[SLEEP & MORNING]
+- Hours: {sleep_hours}
+- Quality: {sleep_quality}
+- Wake up feeling: {morning_feeling if morning_feeling else 'N/A'}
+- Morning Energy: {morning_energy}/10
+
+[EVENING REFLECTION]
+- Evening Energy: {evening_energy}/10
+- Biggest Win: {biggest_win if biggest_win else 'N/A'}
+- Biggest Fail: {biggest_fail if biggest_fail else 'N/A'}
+- Strongest Feeling: {strongest_feeling if strongest_feeling else 'N/A'}
+- Short Story: {short_story if short_story else 'N/A'}
+
+[TOMORROW PLANS]
+{tomorrow_plans if tomorrow_plans else 'N/A'}
+\n\n"""
+
+    # Dopisywanie wpisu do pliku reprezentującego dany tydzień
+    with open(filename, "a", encoding="utf-8") as file:
+        file.write(entry_content)
+        
+    st.success(f"Daily log successfully appended to localized file: {filename}")
